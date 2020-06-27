@@ -21,8 +21,7 @@ This repository teach basic understanding to implement above functions in single
 <ol>
 <li>Simple model implementation using TensorFlow.</li>
 <li>Basic understanding of layer's functions, CONV2D, BatchNormalization, MaxPool2D, UpSampling2D.</li>
-<li>How YOLO work, If you don't know it kindly learn from this course:
- [Convolutional Neural Network](https://www.coursera.org/learn/convolutional-neural-networks/home/week/3)</li>
+<li>How YOLO work, If you don't know it, kindly learn from this course: https://www.coursera.org/learn/convolutional-neural-networks/home/week/3</li>
 </ol>
 
 
@@ -30,7 +29,7 @@ This repository teach basic understanding to implement above functions in single
 1. **index.html** contains all important functions including model loading, image loading, image normalization, inference, coordinate conversion, Non-Max Suppression (NMS), and drawing output image.
 2. **light.jpg** is sample image which you can change to another image by yourself.
 3. **folder /model** contains YOLOv3Tiny model structure and weights. All files in this folder are outcome of exported **TensorFlow keras'** model using command:
-<code>tensorflowjs_converter --input_format=input_model_name.h5 output_model_name</code>
+<code>tensorflowjs_converter --input_format=input_model_name.h5 output_model_name</code><br>
 Before you can use above command you need to install TensorFlowJS using this command: <code>pip install tensorflowjs</code>
 
 ### Why YOLOv3 (Tiny) not YOLOv3
@@ -50,34 +49,48 @@ To see model structure,
 <code>const MODEL_URL='https://aeggarut.github.io/TensorFlowJS-YOLOv3Tiny-ObjectDetection/model/model.json';
             const model=await tf.loadLayersModel(MODEL_URL);</code>
 </li>
+
 <br>
 <li>Load image using <br>
 <code>rawImage = document.getElementById('canvasimg');
             var raw = tf.browser.fromPixels(rawImage,3);</code>
+<br> 
 </li>
+
 <br>
 <li>Resize & normalize image using <br>
 <code>var resized = tf.image.resizeBilinear(raw, [416,416]);
             resized=resized.div(255);</code>
 </li>
-4. Inference using
-<code>var prediction = model.predict(tensor);</code>
+
 <br>
-5. Reshape prediction output from two layers: 
-yolo_output_0 with shape (1, 13, 13, 255)
+<li>Inference using<br>
+<code>var prediction = model.predict(tensor);</code>
+</li>
+
+<br>
+<li> Reshape prediction output from two layers: <br>
+yolo_output_0 with shape (1, 13, 13, 255)<br>
 yolo_output_0 with shape (1, 26, 26, 255)
-using
+using <br>
 <code>var prediction1=prediction[0].reshape([1,13,13,3,85]);
             var prediction2=prediction[1].reshape([1,26,26,3,85]);</code>
+</li>
+
 <br>
-6. Convert coordinate values using function: **yolo_boxes()**
+<li> Convert coordinate values using function: **yolo_boxes()** <br>
 <code>To convert from bX, bY, bH, bW to Xmin, Ymin, Xmax, Ymax.</code>
+</li>
+
 <br>
-7. Remove duplicated boxes using function:** yolo_nms()**
+<li> Remove duplicated boxes using function:** yolo_nms()** <br>
 <code>yolo_nms() applies tf.image.nonMaxSuppressionWithScore() which returns index of chosen boxes</code>
+</li>
+
 <br>
-8. Draw image using function: **drawOutput()**
+<li> Draw image using function: **drawOutput()** <br>
 <code>Convert relative coordinates [0-1] to real coordinates of image then draw boounding box and label on image using html canvas</code>
+</li>
 </ol>
 
 ### Credit
