@@ -1,0 +1,258 @@
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://requirejs.org/docs/release/2.3.5/minified/require.js"></script>
+    
+   
+</head>
+<body>
+    <center><font style="color:blue"><h1>YOLOv3 Tiny implementation using TensorflowJs</h1></font></center>
+    <center>
+        <table>
+            <tr>
+                <td colspan="2"><center><button onclick="detectObject()" style="color: white;   padding: 15px 32px;    text-align: center;     text-decoration: none;  display: inline-block;border: none;background-color: #4CAF50;font-size: 16px;border-radius: 12px;">Detect object</button></center></td>
+               
+            </tr>
+            <tr>
+                <td colspan="2"><center><div id="status" style="padding: 15px;">Click above button to run detection</div></center></td>
+               
+            </tr>
+        <tr>
+            <th><center><h3>Original image</h3></center></th>
+            <th><center><h3>Output</h3></center></th>
+        </tr>
+        <tr>
+            <td width="50%"><img src="light.jpg" id="canvasimg"></td>
+            <td width="50%"><canvas id="myCanvas" ></canvas></td>
+        </tr>
+        
+
+
+        </table>
+    </center>
+    
+</body>
+<script>
+
+  
+        // Define class description
+        const coconames=['person','bicycle','car','motorbike','aeroplane','bus','train','truck','boat','traffic light','fire hydrant','stop sign','parking meter','bench','bird','cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe','backpack','umbrella','handbag','tie','suitcase','frisbee','skis','snowboard','sports ball','kite','baseball bat','baseball glove','skateboard','surfboard','tennis racket','bottle','wine glass','cup','fork','knife','spoon','bowl','banana','apple','sandwich','orange','broccoli','carrot','hot dog','pizza','donut','cake','chair','sofa','pottedplant','bed','diningtable','toilet','tvmonitor','laptop','mouse','remote','keyboard','cell phone','microwave','oven','toaster','sink','refrigerator','book','clock','vase','scissors','teddy bear','hair drier','toothbrush'];
+        const numberOfClasses=80;
+
+        // Define YOLOtiny anchor boxes
+        var anchor1=tf.tensor([[81, 82], [135, 169],  [344, 319]]);
+            anchor1=anchor1.div(416)
+            anchor1=tf.broadcastTo(anchor1,[1, 13, 13, 3, 2]);
+
+        var anchor2=tf.tensor([[10, 14], [23, 27], [37, 58]]);
+            anchor2=anchor2.div(416)
+            anchor2=tf.broadcastTo(anchor2,[1, 26, 26, 3, 2]);
+
+        async function run(){
+
+            // Load model
+            const MODEL_URL='http://localhost:8080/tfjs2/model/model.json';
+            const model=await tf.loadLayersModel(MODEL_URL);
+            // print model summary to console log
+            console.log(model.summary());
+            console.log("Model loading is completed");
+    
+            // Load image from <img id="canvasimg">
+            rawImage = document.getElementById('canvasimg');
+            var raw = tf.browser.fromPixels(rawImage,3);
+            var originalHeight=raw.shape[0];
+            var originalWidth=raw.shape[1];
+
+            // Pre-process image > resize > normalize (divide by 255) > expand batch's dimension
+            var resized = tf.image.resizeBilinear(raw, [416,416]);
+            resized=resized.div(255);
+            var tensor = resized.expandDims(0);
+            console.log("Image preprocessing is completed");
+
+            // Make a prediction using loaded model
+            var prediction = model.predict(tensor);
+            console.log("Inference is completed");
+   
+        
+            // Reshape prediction from batch,W,H,255 to batch,W,H,3,85
+            var prediction1=prediction[0].reshape([1,13,13,3,85]);
+            var prediction2=prediction[1].reshape([1,26,26,3,85]);
+
+            // Convert from bx, by, bh, bw which values are related to grid
+            // to Xmin, Ymin, Xmax, Ymax which values are related to full-size image
+            // and etc. see more in function
+            var boxes_0=yolo_boxes(prediction1, anchor1, numberOfClasses);
+            var boxes_1=yolo_boxes(prediction2, anchor2, numberOfClasses);
+            console.log("Coordinate conversion is completed");
+    
+            // Remove duplicated boxes using Non-max suppression (NMS)
+            var outputs=yolo_nms([boxes_0,boxes_1], numberOfClasses);
+            console.log("Non-Max Suppression (NMS) is completed");
+            
+            // Draw bounding boxes on image
+            drawOutput(outputs,originalWidth,originalHeight);
+            console.log("Drawing output is completed");
+        }
+
+        function yolo_nms(outputs, numberOfClasses){
+    
+            var b = [];
+            var c = [];
+            var t = [];
+            
+            // Since YOLO3Tiny detects objects in two scales, 13X13 and 26X26
+            // before doing Non-max suppression (NMS), 
+            // outputs from two scales prediction need to be put into the same array 
+            for (var i =0; i<outputs.length; i=i+1){
+              
+                // reshape to [batch_size, don't care, numberOfelementsInBbox]
+                var reshapedBbox=outputs[i][0].reshape([1,-1,4]);
+                // reshape to [batch_size, don't care, numberOfelementsInConfidence]
+                var reshapedConfidence=outputs[i][1].reshape([1,-1,1]);
+                // reshape to [batch_size, don't care, numberOfelementsInclasses]
+                var reshapedclasses=outputs[i][2].reshape([1,-1,numberOfClasses]);
+                
+                b.push(reshapedBbox);
+                c.push(reshapedConfidence);
+                t.push(reshapedclasses);
+                        
+            }
+    
+    
+            var bbox = tf.concat(b, axis=1);
+            var confidence = tf.concat(c, axis=1);
+            var class_probs = tf.concat(t, axis=1);
+                  
+            var boxes=bbox.reshape([-1, 4]);
+            confidence=confidence.reshape([confidence.shape[1]]);
+
+            var yolo_max_boxes=100;
+            var iouThreshold=0.5;
+            var yolo_score_threshold= 0.5;
+            var out2=tf.image.nonMaxSuppressionWithScore(boxes, confidence, yolo_max_boxes, iouThreshold, yolo_score_threshold);
+            // var out2=tf.image.nonMaxSuppressionAsync(boxes, confidence, yolo_max_boxes, iouThreshold, yolo_score_threshold);
+            
+            // output from nonMaxSuppressionWithScore return index of boxes 
+            // Since YOLOtiny v3 make prediciton on two scales 13X13 and 26X26 (boxes or grids) 
+            // and Yolo applies 3 anchors per grid
+            // So threre are 13X13X3 + 26X26X3 = 2,535 boxes
+           
+      
+            return [out2, class_probs,boxes];
+      
+            
+           
+        }   
+        function drawOutput(output,imageWidth,imageHeight){
+               
+               
+               
+            // Extract neccessary parameters from function inputs   
+            var out2=output[0];
+            var class_probs=output[1];
+            var boxes=output[2];
+
+      
+            //  Prepare canvas 
+            document.getElementById("myCanvas").setAttribute("width", imageWidth);
+            document.getElementById("myCanvas").setAttribute("height", imageHeight);
+
+            var c = document.getElementById("myCanvas");
+            var ctx = c.getContext("2d");
+
+            // Draw original image on canvas
+            var img = document.getElementById("canvasimg");
+            ctx.drawImage(img, 0, 0);
+
+            // Define bounding box and labeling text styles
+            ctx.beginPath();
+            ctx.strokeStyle = "green";
+            ctx.font = "24px Arial";
+            ctx.fillStyle = "red";
+
+            // Iterate though detected object to draw bounding box and labeling text
+            for (var obj=0; obj < out2.selectedIndices.shape; obj++){
+                      var indexOfObj = class_probs.arraySync()[0][out2.selectedIndices.arraySync()[obj]].reduce((iMax, x, i, arr) => x > arr[iMax] ? i : iMax, 0);
+                                          
+                        // Draw bounding box on image
+                        ctx.rect(
+                        Math.ceil(boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][0]*imageWidth),
+                        Math.ceil(boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][1]*imageHeight) , 
+                        Math.ceil((boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][2])*imageWidth-(boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][0])*imageWidth), 
+                        Math.ceil((boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][3])*imageHeight-(boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][1])*imageHeight));
+               
+                        // Draw labeling text on image
+                        ctx.fillText(coconames[indexOfObj], Math.ceil(boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][0]*imageWidth+15), Math.ceil(boxes.arraySync()[out2.selectedIndices.arraySync()[obj]][1]*imageHeight+15));
+                }
+            ctx.stroke();
+
+
+
+        }
+     
+        function yolo_boxes(pred, anchors, numberOfClasses){
+           
+            // Extract neccessary parameters from function inputs   
+            var  grid_size = pred.shape[1]
+            var [box_xy, box_wh, objectness, class_probs] =tf.split(pred,[2,2,1,numberOfClasses], axis=-1);
+    
+            // Force the range of bx, by, objectness (The probabilities that anchors contain object), class_probx
+            // to [0,1] using sigmoid function
+            box_xy = tf.sigmoid(box_xy);
+            objectness = tf.sigmoid(objectness);
+            class_probs = tf.sigmoid(class_probs);
+    
+            // Keep original bx, by, bh, bw
+            var pred_box = tf.concat([box_xy, box_wh], axis=-1);
+    
+    
+            // Convert from bx, by, bh, bw which values are related to grid
+            // to Xmin, Ymin, Xmax, Ymax which values are related to full-size image
+            // The value of output range [0,1] which are relative to full size image, 
+            // and need to be converted to real coordinate by multiplying full size width or height
+            //  before drawing box, see more > drawOutput()
+            var grid1=[]
+            for (var v =0; v<grid_size; v=v+1){
+                var row=[]
+                    for (var h =0; h<grid_size; h=h+1){
+                        row.push(h);
+                    }
+                grid1.push(row);
+            }
+    
+            var grid2=[]
+            for (var v =0; v<grid_size; v=v+1){
+                var row=[]
+                    for (var h =0; h<grid_size; h=h+1){
+                        row.push(v);
+                    }
+                grid2.push(row);
+    
+            }
+    
+  
+            var grid = tf.stack([grid1,grid2],axis=-1);
+            grid=grid.expandDims(axis=2);
+            box_xy=box_xy.add( tf.cast(grid, 'float32'));
+            box_xy=box_xy.div(grid_size);
+    
+            box_wh=box_wh.exp();
+            box_wh=box_wh.mul(anchors);
+    
+            var box_x1y1=box_xy.sub(box_wh.div(2));
+            var box_x2y2=box_xy.add(box_wh.div(2));
+        
+            // bbox contain Xmin, Ymin, Xmax, Ymax which are top left and bottom right relative coordinates of detected object 
+            var bbox = tf.concat([box_x1y1, box_x2y2], axis=-1);
+ 
+            return [bbox, objectness, class_probs, pred_box];
+   
+        }
+    
+        function detectObject(){
+            run();
+        }
+    
+        </script>
+
+</html>
