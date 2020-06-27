@@ -45,18 +45,21 @@ To see model structure,
 ![Drawn image](mdfiles/YOLOv3TinyStructure.JPG)
 
 ### Implementation flow
-1. Load model using 
+<ol>
+<li>Load model using <br>
 <code>const MODEL_URL='https://aeggarut.github.io/TensorFlowJS-YOLOv3Tiny-ObjectDetection/model/model.json';
             const model=await tf.loadLayersModel(MODEL_URL);</code>
+</li>
 <br>
-2. Load image using
+<li>Load image using <br>
 <code>rawImage = document.getElementById('canvasimg');
             var raw = tf.browser.fromPixels(rawImage,3);</code>
+</li>
 <br>
-3. Resize & normalize image using
+<li>Resize & normalize image using <br>
 <code>var resized = tf.image.resizeBilinear(raw, [416,416]);
             resized=resized.div(255);</code>
-<br>
+</li>
 4. Inference using
 <code>var prediction = model.predict(tensor);</code>
 <br>
@@ -75,6 +78,7 @@ using
 <br>
 8. Draw image using function: **drawOutput()**
 <code>Convert relative coordinates [0-1] to real coordinates of image then draw boounding box and label on image using html canvas</code>
+</ol>
 
 ### Credit
 I learn YOLOv3 and YOLOv3 Tiny implementation in Python using TensorFlow from this repoitory: https://github.com/zzh8829/yolov3-tf2
