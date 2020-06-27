@@ -46,21 +46,21 @@ To see model structure,
 ### Implementation flow
 <ol>
 <li>Load model using <br>
-<code>const MODEL_URL='https://aeggarut.github.io/TensorFlowJS-YOLOv3Tiny-ObjectDetection/model/model.json';<br>
-            const model=await tf.loadLayersModel(MODEL_URL);</code>
+<code>const MODEL_URL='https://aeggarut.github.io/TensorFlowJS-YOLOv3Tiny-ObjectDetection/model/model.json';</code><br>
+<code>const model=await tf.loadLayersModel(MODEL_URL);</code>
 </li>
 
 <br>
 <li>Load image using <br>
-<code>rawImage = document.getElementById('canvasimg');<br>
-            var raw = tf.browser.fromPixels(rawImage,3);</code>
+<code>rawImage = document.getElementById('canvasimg');</code><br>
+<code>var raw = tf.browser.fromPixels(rawImage,3);</code>
 <br> 
 </li>
 
 <br>
 <li>Resize & normalize image using <br>
-<code>var resized = tf.image.resizeBilinear(raw, [416,416]);<br>
-            resized=resized.div(255);</code>
+<code>var resized = tf.image.resizeBilinear(raw, [416,416]);</code><br>
+<code>resized=resized.div(255);</code>
 </li>
 
 <br>
@@ -73,8 +73,8 @@ To see model structure,
 yolo_output_0 with shape (1, 13, 13, 255)<br>
 yolo_output_0 with shape (1, 26, 26, 255)
 using <br>
-<code>var prediction1=prediction[0].reshape([1,13,13,3,85]);<br>
-            var prediction2=prediction[1].reshape([1,26,26,3,85]);</code>
+<code>var prediction1=prediction[0].reshape([1,13,13,3,85]);</code><br>
+<code>var prediction2=prediction[1].reshape([1,26,26,3,85]);</code>
 <br>
 
 
