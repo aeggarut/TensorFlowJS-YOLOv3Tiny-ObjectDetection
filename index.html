@@ -51,7 +51,7 @@
         async function run(){
 
             // Load model
-            const MODEL_URL='http://localhost:8080/tfjs2/model/model.json';
+            const MODEL_URL='https://aeggarut.github.io/TensorFlowJS-YOLOv3Tiny-ObjectDetection/model/model.json';
             const model=await tf.loadLayersModel(MODEL_URL);
             // print model summary to console log
             console.log(model.summary());
